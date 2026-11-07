@@ -31,6 +31,7 @@ SET (star_core_tests_SOURCES
       ref_ptr_test.cpp
       json_test.cpp
       flat_hash_test.cpp
+      gamepad_test.cpp
       formatted_json_test.cpp
       line_test.cpp
       lua_test.cpp

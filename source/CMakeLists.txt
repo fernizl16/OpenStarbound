@@ -650,7 +650,7 @@ if(STAR_BUILD_GUI)
   add_subdirectory(windowing)
 
   # Client interface code
-  set(STAR_FRONTEND_INCLUDES ${PROJECT_SOURCE_DIR}/frontend)
+  set(STAR_FRONTEND_INCLUDES ${PROJECT_SOURCE_DIR}/frontend ${PROJECT_SOURCE_DIR}/frontend/gamepad)
   add_subdirectory(frontend)
 
   # Starbound game / client

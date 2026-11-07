@@ -16,6 +16,7 @@ namespace Star {
 
 STAR_CLASS(Input);
 STAR_CLASS(Voice);
+STAR_CLASS(GamepadController);
 
 class ClientApplication : public Application {
 public:
@@ -141,6 +142,7 @@ private:
   Vec2F m_crossoverRes;
 
   bool m_controllerInput;
+  GamepadControllerPtr m_gamepad;
   Vec2F m_controllerLeftStick;
   Vec2F m_controllerRightStick;
   List<KeyDownEvent> m_heldKeyEvents;

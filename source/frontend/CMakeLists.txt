@@ -11,6 +11,8 @@ INCLUDE_DIRECTORIES (
   )
 
 SET (star_frontend_HEADERS
+    gamepad/StarGamepadLogic.hpp
+    gamepad/StarGamepadController.hpp
     StarActionBar.hpp
     StarAiInterface.hpp
     StarBaseScriptPane.hpp
@@ -65,6 +67,7 @@ SET (star_frontend_HEADERS
   )
 
 SET (star_frontend_SOURCES
+    gamepad/StarGamepadController.cpp
     StarActionBar.cpp
     StarAiInterface.cpp
     StarBaseScriptPane.cpp

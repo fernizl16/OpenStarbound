@@ -31,6 +31,7 @@
 #include "StarVoiceLuaBindings.hpp"
 #include "StarHttpTrustDialog.hpp"
 #include "StarMainInterfaceTypes.hpp"
+#include "StarGamepadController.hpp"
 
 #include "imgui.h"
 #include "imgui_freetype.h"
@@ -207,6 +208,8 @@ void ClientApplication::applicationInit(ApplicationControllerPtr appController) 
   bool borderless = configuration->get("borderless").toBool();
   bool maximized = configuration->get("maximized").toBool();
   m_controllerInput = configuration->get("controllerInput").optBool().value();
+  m_gamepad = make_shared<GamepadController>();
+  m_gamepad->loadSettings();
   
   #ifdef STAR_SYSTEM_WINDOWS
     appController->setBorderlessWorkaround(configuration->get("borderlessWorkaround", true).toBool());
@@ -333,6 +336,9 @@ void ClientApplication::windowChanged(WindowMode windowMode, Vec2U screenSize) {
 }
 
 void ClientApplication::processInput(InputEvent const& event) {
+  if (m_gamepad)
+    m_gamepad->handleInputEvent(event);
+
   if (auto keyDown = event.ptr<KeyDownEvent>()) {
     m_heldKeyEvents.append(*keyDown);
     m_edgeKeyEvents.append(*keyDown);
@@ -1211,6 +1217,13 @@ void ClientApplication::updateRunning(float dt) {
       m_player->setMoveVector(m_controllerLeftStick);
     else
       m_player->setMoveVector(Vec2F());
+
+    // StarPad gamepad layer: movement, aim, gameplay buttons. Runs after the
+    // keyboard so both devices work together.
+    if (m_gamepad) {
+      bool suppressed = m_cinematicOverlay->suppressInput();
+      m_gamepad->update(dt, m_player, suppressed ? WorldClientPtr() : m_universeClient->worldClient(), m_mainInterface.get());
+    }
 
     m_voice->setInput(m_input->bindHeld("opensb", "pushToTalk"));
     DataStreamBuffer voiceData;

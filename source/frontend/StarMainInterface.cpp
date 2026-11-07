@@ -538,8 +538,17 @@ void MainInterface::handleInteractAction(InteractAction interactAction) {
 
 void MainInterface::preUpdate(float) {
   auto player = m_client->mainPlayer();
-  if (!m_client->paused())
-    player->aim(cursorWorldPosition());
+  if (!m_client->paused()) {
+    if (m_gamepadAim) {
+      // StarPad: keep the in-world cursor on the gamepad aim so the game's own
+      // tile highlight, object preview and range checks use it.
+      m_cursorScreenPos = m_worldPainter->camera().worldToScreen(*m_gamepadAim);
+      m_cursorScreenIPos = Vec2I::round(m_cursorScreenPos);
+      player->aim(*m_gamepadAim);
+    } else {
+      player->aim(cursorWorldPosition());
+    }
+  }
 
   Set<PlayerBusyState> busyStates;
   if (m_paneManager.topPane({PaneLayer::Window, PaneLayer::ModalWindow}))
@@ -899,6 +908,14 @@ void MainInterface::render() {
 
   renderWindows();
   renderCursor();
+}
+
+void MainInterface::setGamepadAim(Maybe<Vec2F> worldPosition) {
+  m_gamepadAim = worldPosition;
+}
+
+Maybe<Vec2F> MainInterface::gamepadAim() const {
+  return m_gamepadAim;
 }
 
 Vec2F MainInterface::cursorWorldPosition() const {

@@ -99,6 +99,11 @@ public:
 
   Vec2F cursorWorldPosition() const;
 
+  // StarPad: when set, the player aims here instead of at the mouse cursor,
+  // and tile highlights / previews follow it.
+  void setGamepadAim(Maybe<Vec2F> worldPosition);
+  Maybe<Vec2F> gamepadAim() const;
+
   bool isDebugDisplayed();
 
   void doChat(String const& chat, bool addToHistory);
@@ -197,6 +202,7 @@ private:
 
   ActionBarPtr m_actionBar;
   Vec2F m_cursorScreenPos{};
+  Maybe<Vec2F> m_gamepadAim;
   Vec2I m_cursorScreenIPos{};
   ItemSlotWidgetPtr m_cursorItem;
   Maybe<String> m_cursorTooltip;
