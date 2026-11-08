@@ -31,6 +31,7 @@ public:
 
   // Returns the size of the underlying bag.
   size_t bagSize() const;
+  unsigned bagOffset() const { return m_bagOffset; }
 
   // Returns the min of bagSize() and itemSlots()
   size_t effectiveSize() const;

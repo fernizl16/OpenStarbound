@@ -45,6 +45,7 @@ SET (star_core_HEADERS
     StarImageProcessing.hpp
     StarImageScaling.hpp
     StarInputEvent.hpp
+    StarGamepadUiContext.hpp
     StarInterpolation.hpp
     StarRefPtr.hpp
     StarIterator.hpp

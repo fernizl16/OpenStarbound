@@ -32,6 +32,7 @@
 #include "StarVoiceLuaBindings.hpp"
 #include "StarHttpTrustDialog.hpp"
 #include "StarMainInterfaceTypes.hpp"
+#include "StarGamepadUiContext.hpp"
 #ifdef STAR_SYSTEM_SWITCH
 #include "StarTextBoxWidget.hpp"
 #include "mobile/switch/StarSwitchPlatform.hpp"
@@ -600,6 +601,18 @@ void ClientApplication::processInput(InputEvent const& event) {
 void ClientApplication::update() {
   float dt = GlobalTimestep * GlobalTimescale;
   auto& app = appController();
+
+  // StarPad: tell the gamepad adapter whether menus own the face buttons.
+  {
+    bool menuActive = false;
+    if (m_state == MainAppState::SinglePlayer || m_state == MainAppState::MultiPlayer) {
+      if (m_mainInterface)
+        menuActive = (bool)m_mainInterface->paneManager()->topPane({PaneLayer::Window, PaneLayer::ModalWindow});
+    } else if (m_state == MainAppState::Title) {
+      menuActive = true;
+    }
+    GamepadUiContext::setMenuActive(menuActive);
+  }
   if (m_state >= MainAppState::Title) {
     if (auto p2pNetworkingService = app->p2pNetworkingService()) {
       if (auto join = p2pNetworkingService->pullPendingJoin()) {

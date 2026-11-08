@@ -40,6 +40,10 @@ protected:
 
   void selectTab(String const& selected);
 
+  // StarPad gamepad hooks.
+  bool uiQuickAction(Widget* selected) override;
+  bool uiTabAction(int direction) override;
+
 private:
   MainInterface* m_parent;
   PlayerPtr m_player;
@@ -55,6 +59,7 @@ private:
 
   Map<String, ItemGridWidgetPtr> m_itemGrids;
   Map<String, String> m_tabButtonData;
+  StringList m_bagOrder;
 
   Map<String, WidgetPtr> m_newItemMarkers;
   String m_selectedTab;

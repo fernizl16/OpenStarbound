@@ -277,6 +277,23 @@ struct UiNavigationEvent {
   UiNavigationDirection direction;
 };
 
+// StarPad: menu-level gamepad actions, sent instead of the gameplay binding
+// while a window or menu is open. Handled by PaneManager on the current UI
+// selection.
+enum class UiAction : uint8_t {
+  Accept,      // left click on the selection (pick up / place / press)
+  Secondary,   // right click on the selection (take one, use)
+  Quick,       // context action: equip, add to hotbar, move to container
+  Cancel,      // close the top window
+  TabPrevious,
+  TabNext
+};
+
+struct UiActionEvent {
+  UiAction action;
+  bool pressed;
+};
+
 enum class ActionWheelType {
   Actions,
   Inventory
@@ -321,6 +338,7 @@ typedef Variant<
     MouseButtonUpEvent,
     MouseWheelEvent,
     UiNavigationEvent,
+    UiActionEvent,
     ActionWheelEvent,
     DirectionalAimEvent,
     ControllerAxisEvent,

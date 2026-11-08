@@ -94,6 +94,9 @@ public:
   // HUD overlay detect that its captured frame no longer matches the pane set.
   uint64_t displayedPanesVersion() const;
 
+  // StarPad: screen position (pixels) of the current gamepad UI selection.
+  Maybe<Vec2F> uiSelectionScreenPosition() const;
+
 private:
   struct UiNavigationCandidate {
     Widget const* widget;
@@ -107,6 +110,8 @@ private:
   Vec2I calculateNewInterfacePosition(PanePtr const& pane, float interfaceScaleRatio) const;
   bool dismiss(PanePtr const& pane);
   bool handleUiNavigation(UiNavigationDirection direction);
+  bool handleUiAction(UiActionEvent const& action);
+  void sendUiSelectionClick(MouseButton button, bool pressed);
   void collectUiNavigationCandidates(Widget* widget, List<UiNavigationCandidate>& candidates, bool includeSelf, Maybe<RectI> selectableAncestorRect = {}) const;
   bool uiNavigationCandidateWidget(Widget* widget) const;
   Maybe<UiNavigationCandidate> chooseUiNavigationCandidate(List<UiNavigationCandidate> const& candidates, UiNavigationDirection direction) const;
@@ -162,6 +167,7 @@ private:
   bool m_sendingUiNavigationMouseButton = false;
   Widget const* m_uiSelectionWidget = nullptr;
   RectI m_uiSelectionRect;
+  Maybe<RectI> m_uiSelectionAncestorRect;
 };
 
 }

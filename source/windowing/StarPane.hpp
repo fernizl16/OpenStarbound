@@ -93,6 +93,12 @@ public:
   virtual Maybe<String> cursorOverride(Vec2I const& screenPosition);
   virtual Maybe<ItemPtr> shiftItemFromInventory(ItemPtr const& input);
 
+  // StarPad gamepad hooks. Return true if handled.
+  // Quick action on the selected widget (equip, add to hotbar, ...).
+  virtual bool uiQuickAction(Widget* selected);
+  // Switch to the previous (-1) or next (+1) tab of this window.
+  virtual bool uiTabAction(int direction);
+
   virtual LuaCallbacks makePaneCallbacks();
 protected:
   virtual GuiReaderPtr reader();
