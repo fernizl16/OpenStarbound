@@ -8,6 +8,7 @@
 #include "StarImageWidget.hpp"
 #include "StarLabelWidget.hpp"
 #include "StarPortraitWidget.hpp"
+#include "StarItemGridWidget.hpp"
 
 #include <limits>
 #include <typeinfo>
@@ -204,6 +205,8 @@ bool PaneManager::keyboardCapturedForTextInput() const {
 bool PaneManager::sendInputEvent(InputEvent const& event) {
   if (auto navigation = event.ptr<UiNavigationEvent>())
     return handleUiNavigation(navigation->direction);
+  if (auto action = event.ptr<UiActionEvent>())
+    return handleUiAction(*action);
 
   if (m_hasUiSelection && !m_sendingUiNavigationMouseButton && (event.is<MouseButtonDownEvent>() || event.is<MouseButtonUpEvent>())) {
     if (event.is<MouseButtonDownEvent>())
@@ -533,6 +536,7 @@ bool PaneManager::handleUiNavigation(UiNavigationDirection direction) {
   m_hasUiSelection = true;
   m_uiSelectionWidget = selected->widget;
   m_uiSelectionRect = selected->rect;
+  m_uiSelectionAncestorRect = selected->selectableAncestorRect;
 
   Vec2F mousePosition = Vec2F(selected->center) * m_context->interfaceScale();
   MouseMoveEvent moveEvent{{0.0f, 0.0f}, mousePosition, true};
@@ -540,6 +544,92 @@ bool PaneManager::handleUiNavigation(UiNavigationDirection direction) {
   sendInputEvent(moveEvent);
   m_sendingUiNavigationMouseMove = false;
   return true;
+}
+
+bool PaneManager::handleUiAction(UiActionEvent const& action) {
+  // Make sure something is selected: the first Accept/Secondary/Quick press in
+  // a freshly opened window just selects the top-most element.
+  if (action.action == UiAction::Accept || action.action == UiAction::Secondary || action.action == UiAction::Quick) {
+    clearInvalidUiSelection();
+    if (!m_hasUiSelection) {
+      if (action.pressed)
+        handleUiNavigation(UiNavigationDirection::Down);
+      return true;
+    }
+  }
+
+  auto topWindow = topPane({PaneLayer::ModalWindow, PaneLayer::Window});
+
+  switch (action.action) {
+    case UiAction::Accept:
+      sendUiSelectionClick(MouseButton::Left, action.pressed);
+      return true;
+
+    case UiAction::Secondary:
+      sendUiSelectionClick(MouseButton::Right, action.pressed);
+      return true;
+
+    case UiAction::Quick: {
+      if (!action.pressed)
+        return true;
+      Widget* selected = const_cast<Widget*>(m_uiSelectionWidget);
+      if (auto pane = selected ? selected->window() : nullptr) {
+        if (pane->uiQuickAction(selected))
+          return true;
+      }
+      // Fallback: shift-click, which moves items between inventory and an
+      // open container / merchant in the stock game.
+      bool wasShift = m_context->shiftHeld();
+      m_context->setShiftHeld(true);
+      sendUiSelectionClick(MouseButton::Left, true);
+      sendUiSelectionClick(MouseButton::Left, false);
+      m_context->setShiftHeld(wasShift);
+      return true;
+    }
+
+    case UiAction::Cancel:
+      if (action.pressed && topWindow) {
+        dismiss(topWindow);
+        m_hasUiSelection = false;
+        m_uiSelectionWidget = nullptr;
+        return true;
+      }
+      return (bool)topWindow;
+
+    case UiAction::TabPrevious:
+    case UiAction::TabNext: {
+      if (!action.pressed)
+        return (bool)topWindow;
+      Pane* pane = topWindow.get();
+      if (m_hasUiSelection && m_uiSelectionWidget) {
+        if (auto selectedPane = const_cast<Widget*>(m_uiSelectionWidget)->window())
+          pane = selectedPane;
+      }
+      if (pane && pane->uiTabAction(action.action == UiAction::TabNext ? 1 : -1)) {
+        clearInvalidUiSelection();
+        return true;
+      }
+      return (bool)topWindow;
+    }
+  }
+
+  return false;
+}
+
+void PaneManager::sendUiSelectionClick(MouseButton button, bool pressed) {
+  if (!m_hasUiSelection)
+    return;
+  Vec2F position = Vec2F(uiNavigationSelectedCenter()) * m_context->interfaceScale();
+  if (pressed)
+    sendInputEvent(MouseButtonDownEvent{button, position});
+  else
+    sendInputEvent(MouseButtonUpEvent{button, position});
+}
+
+Maybe<Vec2F> PaneManager::uiSelectionScreenPosition() const {
+  if (!m_hasUiSelection)
+    return {};
+  return Vec2F(uiNavigationSelectedCenter()) * m_context->interfaceScale();
 }
 
 void PaneManager::collectUiNavigationCandidates(Widget* widget, List<UiNavigationCandidate>& candidates, bool includeSelf, Maybe<RectI> selectableAncestorRect) const {
@@ -567,6 +657,10 @@ bool PaneManager::uiNavigationCandidateWidget(Widget* widget) const {
   if (!widget->interactive() || widget->mouseTransparent())
     return false;
   if (is<LabelWidget>(widget) || is<ImageWidget>(widget) || is<PortraitWidget>(widget))
+    return false;
+  // StarPad: an item grid is a container; its individual slots are the
+  // navigation targets, so the gamepad can move slot to slot.
+  if (is<ItemGridWidget>(widget))
     return false;
   return true;
 }
@@ -607,7 +701,12 @@ Maybe<PaneManager::UiNavigationCandidate> PaneManager::chooseUiNavigationCandida
       continue;
 
     float score = primary + perpendicular * 2.0f;
-    if (candidate.selectableAncestorRect && (!m_hasUiSelection || *candidate.selectableAncestorRect != m_uiSelectionRect))
+    // Children of a selectable container are only preferred once the
+    // container (or a sibling inside it) is selected. Siblings share the same
+    // ancestor, so moving between them is not penalized.
+    if (candidate.selectableAncestorRect && (!m_hasUiSelection
+        || (*candidate.selectableAncestorRect != m_uiSelectionRect
+            && candidate.selectableAncestorRect != m_uiSelectionAncestorRect)))
       score += 100000.0f;
 
     if (score < bestScore) {
@@ -679,6 +778,7 @@ void PaneManager::clearInvalidUiSelection() {
   for (auto const& candidate : candidates) {
     if (candidate.widget == m_uiSelectionWidget) {
       m_uiSelectionRect = candidate.rect;
+      m_uiSelectionAncestorRect = candidate.selectableAncestorRect;
       return;
     }
   }

@@ -9,6 +9,7 @@
 #include "StarSignalHandler.hpp"
 #include "StarTickRateMonitor.hpp"
 #include "StarTime.hpp"
+#include "StarGamepadUiContext.hpp"
 #include "StarPlatformServices_mobile.hpp"
 #if STAR_SYSTEM_ANDROID
 #include "mobile/android/StarAndroidFileAccessBridge.hpp"
@@ -2090,6 +2091,7 @@ public:
     }
 
     m_heldButtons.clear();
+    m_menuButtons.clear();
     m_toggledButtons.clear();
     m_nextButtonRepeatMs.clear();
     m_keyActionOwners.clear();
@@ -2179,6 +2181,18 @@ private:
   void pressButton(ControllerButton button) {
     if (button == ControllerButton::Invalid || m_heldButtons.contains(buttonOwner(button)))
       return;
+
+    // StarPad: while a window or menu is open, face buttons and bumpers act on
+    // the selected UI element instead of running their gameplay binding.
+    if (GamepadUiContext::menuActive()) {
+      if (auto uiAction = menuActionForButton(button)) {
+        String owner = buttonOwner(button);
+        m_heldButtons.add(owner);
+        m_menuButtons[owner] = *uiAction;
+        emitEvent(UiActionEvent{*uiAction, true});
+        return;
+      }
+    }
     auto binding = bindingForButton(button);
     if (!binding || !binding->enabled)
       return;
@@ -2215,10 +2229,29 @@ private:
     }
   }
 
+  static Maybe<UiAction> menuActionForButton(ControllerButton button) {
+    switch (button) {
+      case ControllerButton::A: return UiAction::Accept;
+      case ControllerButton::X: return UiAction::Secondary;
+      case ControllerButton::Y: return UiAction::Quick;
+      case ControllerButton::B: return UiAction::Cancel;
+      case ControllerButton::LeftShoulder: return UiAction::TabPrevious;
+      case ControllerButton::RightShoulder: return UiAction::TabNext;
+      default: return {};
+    }
+  }
+
   void releaseButton(ControllerButton button) {
     String owner = buttonOwner(button);
     if (!m_heldButtons.contains(owner))
       return;
+
+    if (auto uiAction = m_menuButtons.maybe(owner)) {
+      m_heldButtons.remove(owner);
+      m_menuButtons.remove(owner);
+      emitEvent(UiActionEvent{*uiAction, false});
+      return;
+    }
 
     m_heldButtons.remove(owner);
     if (auto active = m_activeButtons.ptr(owner)) {
@@ -2515,6 +2548,7 @@ private:
   String m_actionWheelOwner;
   ActionWheelType m_actionWheelType = ActionWheelType::Actions;
   StringMap<ActiveButton> m_activeButtons;
+  StringMap<UiAction> m_menuButtons;
   StringMap<int64_t> m_nextButtonRepeatMs;
   StringMap<MobileTouchAction> m_pulsedActions;
   StringMap<int64_t> m_pulsedActionReleaseMs;

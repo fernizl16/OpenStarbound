@@ -31,7 +31,7 @@ android {
     androidResources.ignoreAssetsPatterns.add('packed.pak')
 
     defaultConfig {
-        applicationId "com.devoflife.osbm.android"
+        applicationId "com.fernizl16.starpad"
         minSdk 26
         targetSdk 34
         versionCode osbmVersionCode

@@ -607,6 +607,15 @@ void MainInterface::preUpdate(float) {
 
 void MainInterface::update(float dt) {
   m_paneManager.update(dt);
+
+  // StarPad: with a gamepad UI selection active in a window, the held item
+  // (and tooltips) follow the selection instead of the last mouse position.
+  if (windowsOpen()) {
+    if (auto selection = m_paneManager.uiSelectionScreenPosition()) {
+      m_cursorScreenPos = *selection;
+      m_cursorScreenIPos = Vec2I::round(*selection);
+    }
+  }
   m_cursor.update(dt);
   m_cursorDraggingCached = (bool)m_client->mainPlayer()->inventory()->swapSlotItem();
 

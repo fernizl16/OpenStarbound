@@ -2627,6 +2627,13 @@ private:
     sameLineIfNextFits(imguiButtonWidth(launcherText("common.save", "Save").utf8Ptr()));
     if (ImGui::Button(launcherText("common.save", "Save").utf8Ptr()))
       persistLauncherState(state);
+    // StarPad: one-tap return to the stock controller setup.
+    sameLineIfNextFits(imguiButtonWidth(launcherText("gamepadManager.resetDefaults", "Restore defaults").utf8Ptr()));
+    if (ImGui::Button(launcherText("gamepadManager.resetDefaults", "Restore defaults").utf8Ptr())) {
+      state.gamepadConfig = MobileGamepadConfig();
+      state.gamepadBindings = defaultGamepadBindings();
+      persistLauncherState(state);
+    }
 
     String connected = m_activeGamepadName.empty() ? launcherText("gamepadManager.noController", "No controller connected") : m_activeGamepadName;
     ImGui::Text("%s: %s", launcherText("gamepadManager.connected", "Connected").utf8Ptr(), connected.utf8Ptr());

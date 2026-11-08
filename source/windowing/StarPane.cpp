@@ -348,6 +348,14 @@ Maybe<String> Pane::cursorOverride(Vec2I const&) {
   return {};
 }
 
+bool Pane::uiQuickAction(Widget*) {
+  return false;
+}
+
+bool Pane::uiTabAction(int) {
+  return false;
+}
+
 Maybe<ItemPtr> Pane::shiftItemFromInventory(ItemPtr const&) {
   return {};
 }

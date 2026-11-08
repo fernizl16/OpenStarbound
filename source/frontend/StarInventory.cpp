@@ -20,6 +20,7 @@
 #include "StarJsonExtra.hpp"
 #include "StarStatistics.hpp"
 #include "StarAugmentItem.hpp"
+#include "StarArmors.hpp"
 #include "StarObjectItem.hpp"
 #include "StarInteractionTypes.hpp"
 
@@ -197,6 +198,7 @@ InventoryPane::InventoryPane(MainInterface* parent, PlayerPtr player, ContainerI
     }
   }
 
+  m_bagOrder = bagOrder;
   for (auto name : bagOrder) {
     auto itemTab = itemBagConfig.get(name);
     m_itemGrids[name] = fetchChild<ItemGridWidget>(itemTab.getString("itemGrid"));
@@ -542,6 +544,89 @@ void InventoryPane::selectTab(String const& selected) {
   for (auto button : tabs->buttons())
     if (button->data().toString().equalsIgnoreCase(m_tabButtonData[selected]))
       tabs->select(tabs->id(button));
+}
+
+bool InventoryPane::uiTabAction(int direction) {
+  if (m_bagOrder.empty())
+    return false;
+  int index = 0;
+  for (size_t i = 0; i < m_bagOrder.size(); ++i) {
+    if (m_bagOrder[i] == m_selectedTab)
+      index = (int)i;
+  }
+  selectTab(m_bagOrder[pmod(index + direction, (int)m_bagOrder.size())]);
+  return true;
+}
+
+bool InventoryPane::uiQuickAction(Widget* selected) {
+  auto inventory = m_player->inventory();
+  auto playSound = [this](StringList const& sounds) {
+    if (!sounds.empty())
+      context()->playAudio(RandomSource().randFrom(sounds));
+  };
+
+  // An equipped piece selected: unequip it into the bags.
+  for (auto const& p : EquipmentSlotNames) {
+    auto slotWidget = fetchChild<ItemSlotWidget>(p.second);
+    if (!slotWidget || slotWidget.get() != selected)
+      continue;
+    if (auto item = inventory->takeSlot(p.first)) {
+      auto remainder = inventory->addItems(item);
+      if (remainder && !remainder->empty())
+        inventory->setItem(p.first, remainder);
+      else
+        playSound(m_putDownSounds);
+    }
+    return true;
+  }
+
+  // A bag slot selected: equip armor, otherwise add it to the action bar.
+  for (auto const& pair : m_itemGrids) {
+    auto grid = pair.second;
+    for (size_t i = 0; i < grid->itemSlots(); ++i) {
+      auto slotWidget = grid->itemWidgetAt(i);
+      if (!slotWidget || slotWidget.get() != selected)
+        continue;
+
+      InventorySlot slot = BagSlot(pair.first, i + grid->bagOffset());
+      auto item = inventory->itemsAt(slot);
+      if (!item)
+        return true;
+
+      // With a container or shop open, the quick action moves items there
+      // (handled by the shift-click fallback).
+      if (m_containerInteractor->containerOpen() || m_parent->activeMerchantPane())
+        return false;
+
+      Maybe<EquipmentSlot> target;
+      if (is<HeadArmor>(item))
+        target = EquipmentSlot::Head;
+      else if (is<ChestArmor>(item))
+        target = EquipmentSlot::Chest;
+      else if (is<LegsArmor>(item))
+        target = EquipmentSlot::Legs;
+      else if (is<BackArmor>(item))
+        target = EquipmentSlot::Back;
+
+      if (target) {
+        if (!PlayerInventory::itemAllowedAsEquipment(item, *target))
+          return true;
+        auto previous = inventory->takeSlot(*target);
+        auto taken = inventory->takeSlot(slot);
+        inventory->setItem(*target, taken);
+        if (previous)
+          inventory->setItem(slot, previous);
+        playSound(m_putDownSounds);
+        return true;
+      }
+
+      inventory->addToCustomBar(slot);
+      playSound(m_putDownSounds);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 }

@@ -97,6 +97,7 @@ gamepadManager.connected=Connected
 gamepadManager.layout=Layout
 gamepadManager.layoutGeneric=Generic gamepad
 gamepadManager.noController=No controller connected
+gamepadManager.resetDefaults=Restore defaults
 gamepadManager.enable=Enable gamepad controls
 gamepadManager.triggerThreshold=Trigger press threshold
 gamepadManager.leftStick=Left Stick
