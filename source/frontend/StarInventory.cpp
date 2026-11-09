@@ -21,6 +21,7 @@
 #include "StarStatistics.hpp"
 #include "StarAugmentItem.hpp"
 #include "StarArmors.hpp"
+#include "StarActionBar.hpp"
 #include "StarObjectItem.hpp"
 #include "StarInteractionTypes.hpp"
 
@@ -347,6 +348,13 @@ void InventoryPane::update(float dt) {
   auto inventory = m_player->inventory();
   auto context = Widget::context();
 
+  // StarPad: once the held item has been placed on the bar, bring the
+  // gamepad selection back to where it came from in the inventory.
+  if (m_barAssignOrigin && !inventory->swapSlotItem()) {
+    m_parent->paneManager()->setUiSelection(m_barAssignOrigin);
+    m_barAssignOrigin = nullptr;
+  }
+
   HashSet<ItemPtr> customBarItems;
   for (uint8_t i = 0; i < inventory->customBarIndexes(); ++i) {
     if (auto primarySlot = inventory->customBarPrimarySlot(i)) {
@@ -620,13 +628,44 @@ bool InventoryPane::uiQuickAction(Widget* selected) {
         return true;
       }
 
-      inventory->addToCustomBar(slot);
-      playSound(m_putDownSounds);
+      // Anything else: pick it up and jump the selection to the action bar.
+      // Move left/right along the bar and press A to place it there (A on the
+      // left half = main hand, right half = off hand). B puts it back.
+      auto paneManager = m_parent->paneManager();
+      if (!inventory->swapSlotItem())
+        paneManager->uiClickSelection(MouseButton::Left);
+      if (!inventory->swapSlotItem())
+        return true;
+      m_barAssignOrigin = selected;
+
+      size_t barIndex = 0;
+      if (auto cbi = inventory->selectedActionBarLocation().ptr<CustomBarIndex>())
+        barIndex = *cbi;
+      if (auto actionBar = paneManager->registeredPane<ActionBar>(MainInterfacePanes::ActionBar)) {
+        if (auto barSlot = actionBar->fetchChild<ItemSlotWidget>(strf("customBar{}L", barIndex + 1)))
+          paneManager->setUiSelection(barSlot.get());
+      }
       return true;
     }
   }
 
   return false;
+}
+
+bool InventoryPane::uiCancelAction() {
+  auto inventory = m_player->inventory();
+  if (!inventory->swapSlotItem()) {
+    m_barAssignOrigin = nullptr;
+    return false;
+  }
+  // Put the held item back where it came from and return the selection there.
+  inventory->clearSwap();
+  if (!m_putDownSounds.empty())
+    context()->playAudio(RandomSource().randFrom(m_putDownSounds));
+  if (m_barAssignOrigin)
+    m_parent->paneManager()->setUiSelection(m_barAssignOrigin);
+  m_barAssignOrigin = nullptr;
+  return true;
 }
 
 }

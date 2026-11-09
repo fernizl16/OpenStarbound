@@ -591,6 +591,9 @@ bool PaneManager::handleUiAction(UiActionEvent const& action) {
     }
 
     case UiAction::Cancel:
+      // Let the window undo a pending action first (e.g. put back a held item).
+      if (action.pressed && topWindow && topWindow->uiCancelAction())
+        return true;
       if (action.pressed && topWindow) {
         dismiss(topWindow);
         m_hasUiSelection = false;
@@ -627,6 +630,36 @@ void PaneManager::sendUiSelectionClick(MouseButton button, bool pressed) {
     sendInputEvent(MouseButtonDownEvent{button, position});
   else
     sendInputEvent(MouseButtonUpEvent{button, position});
+}
+
+void PaneManager::uiClickSelection(MouseButton button) {
+  sendUiSelectionClick(button, true);
+  sendUiSelectionClick(button, false);
+}
+
+bool PaneManager::setUiSelection(Widget* widget) {
+  if (!widget || !widget->active())
+    return false;
+  RectI rect = widget->screenBoundRect();
+  if (rect.isEmpty())
+    return false;
+  Maybe<RectI> ancestor;
+  for (Widget* p = widget->parent(); p; p = p->parent()) {
+    if (p->parent() && uiNavigationCandidateWidget(p)) {
+      ancestor = p->screenBoundRect();
+      break;
+    }
+  }
+  m_hasUiSelection = true;
+  m_uiSelectionWidget = widget;
+  m_uiSelectionRect = rect;
+  m_uiSelectionAncestorRect = ancestor;
+  scrollUiSelectionIntoView();
+  return true;
+}
+
+Widget* PaneManager::uiSelectionWidget() const {
+  return m_hasUiSelection ? const_cast<Widget*>(m_uiSelectionWidget) : nullptr;
 }
 
 Maybe<Vec2F> PaneManager::uiSelectionScreenPosition() const {

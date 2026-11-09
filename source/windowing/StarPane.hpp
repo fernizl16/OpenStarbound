@@ -98,6 +98,8 @@ public:
   virtual bool uiQuickAction(Widget* selected);
   // Switch to the previous (-1) or next (+1) tab of this window.
   virtual bool uiTabAction(int direction);
+  // B pressed: undo a pending action instead of closing the window.
+  virtual bool uiCancelAction();
 
   virtual LuaCallbacks makePaneCallbacks();
 protected:

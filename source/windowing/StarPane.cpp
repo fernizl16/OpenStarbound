@@ -356,6 +356,10 @@ bool Pane::uiTabAction(int) {
   return false;
 }
 
+bool Pane::uiCancelAction() {
+  return false;
+}
+
 Maybe<ItemPtr> Pane::shiftItemFromInventory(ItemPtr const&) {
   return {};
 }

@@ -96,6 +96,11 @@ public:
 
   // StarPad: screen position (pixels) of the current gamepad UI selection.
   Maybe<Vec2F> uiSelectionScreenPosition() const;
+  // StarPad: click the current gamepad selection (press + release).
+  void uiClickSelection(MouseButton button);
+  // StarPad: move the gamepad selection to a specific widget.
+  bool setUiSelection(Widget* widget);
+  Widget* uiSelectionWidget() const;
 
 private:
   struct UiNavigationCandidate {

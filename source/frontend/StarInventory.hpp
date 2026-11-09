@@ -43,6 +43,7 @@ protected:
   // StarPad gamepad hooks.
   bool uiQuickAction(Widget* selected) override;
   bool uiTabAction(int direction) override;
+  bool uiCancelAction() override;
 
 private:
   MainInterface* m_parent;
@@ -60,6 +61,8 @@ private:
   Map<String, ItemGridWidgetPtr> m_itemGrids;
   Map<String, String> m_tabButtonData;
   StringList m_bagOrder;
+  // StarPad: bag slot widget an item was picked from to be placed on the bar.
+  Widget* m_barAssignOrigin = nullptr;
 
   Map<String, WidgetPtr> m_newItemMarkers;
   String m_selectedTab;
