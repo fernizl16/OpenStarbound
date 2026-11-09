@@ -26,6 +26,10 @@ public:
   void dismissed() override;
   PanePtr createTooltip(Vec2I const& screenPosition) override;
 
+  // StarPad gamepad hooks: LB/RB cycle categories, Y crafts.
+  bool uiTabAction(int direction) override;
+  bool uiQuickAction(Widget* selected) override;
+
   EntityId sourceEntityId() const;
 
 private:

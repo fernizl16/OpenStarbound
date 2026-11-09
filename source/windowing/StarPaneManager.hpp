@@ -112,6 +112,7 @@ private:
   bool handleUiNavigation(UiNavigationDirection direction);
   bool handleUiAction(UiActionEvent const& action);
   void sendUiSelectionClick(MouseButton button, bool pressed);
+  void scrollUiSelectionIntoView();
   void collectUiNavigationCandidates(Widget* widget, List<UiNavigationCandidate>& candidates, bool includeSelf, Maybe<RectI> selectableAncestorRect = {}) const;
   bool uiNavigationCandidateWidget(Widget* widget) const;
   Maybe<UiNavigationCandidate> chooseUiNavigationCandidate(List<UiNavigationCandidate> const& candidates, UiNavigationDirection direction) const;

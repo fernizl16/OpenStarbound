@@ -773,4 +773,48 @@ ItemRecipe CraftingPane::recipeFromSelectedWidget() const {
   return ItemRecipe();
 }
 
+bool CraftingPane::uiTabAction(int direction) {
+  auto group = fetchChild<ButtonGroupWidget>("categories");
+  if (!group || group->buttonCount() == 0)
+    return false;
+
+  List<int> ids;
+  // In toggle mode "nothing selected" means all categories; treat it as the
+  // first stop of the cycle.
+  if (group->toggle())
+    ids.append(ButtonGroup::NoButton);
+  for (auto button : group->buttons()) {
+    if (button->active())
+      ids.append(group->id(button));
+  }
+  if (ids.size() <= 1)
+    return false;
+
+  int current = group->checkedId();
+  int index = 0;
+  for (size_t i = 0; i < ids.size(); ++i) {
+    if (ids[i] == current)
+      index = (int)i;
+  }
+  int next = ids[pmod(index + direction, (int)ids.size())];
+  if (next == ButtonGroup::NoButton) {
+    if (auto checked = group->checkedButton())
+      checked->setChecked(false);
+  } else {
+    group->select(next);
+  }
+  updateAvailableRecipes();
+  return true;
+}
+
+bool CraftingPane::uiQuickAction(Widget*) {
+  if (auto craftButton = fetchChild<ButtonWidget>("btnCraft")) {
+    if (m_crafting || craftButton->isEnabled()) {
+      toggleCraft();
+      return true;
+    }
+  }
+  return true;
+}
+
 }

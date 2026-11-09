@@ -41,12 +41,18 @@
         "name": "Cycle Material Collision"
       },
       "buildingRadiusGrow": {
-        "default": [],
+        "default": [{
+          "type": "key",
+          "value": "PageUp"
+        }],
         "group": "building",
         "name": "Grow Building Radius"
       },
       "buildingRadiusShrink": {
-        "default": [],
+        "default": [{
+          "type": "key",
+          "value": "PageDown"
+        }],
         "group": "building",
         "name": "Shrink Building Radius"
       },

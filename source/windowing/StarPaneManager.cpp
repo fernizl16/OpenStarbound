@@ -9,6 +9,8 @@
 #include "StarLabelWidget.hpp"
 #include "StarPortraitWidget.hpp"
 #include "StarItemGridWidget.hpp"
+#include "StarScrollArea.hpp"
+#include "StarListWidget.hpp"
 
 #include <limits>
 #include <typeinfo>
@@ -537,6 +539,7 @@ bool PaneManager::handleUiNavigation(UiNavigationDirection direction) {
   m_uiSelectionWidget = selected->widget;
   m_uiSelectionRect = selected->rect;
   m_uiSelectionAncestorRect = selected->selectableAncestorRect;
+  scrollUiSelectionIntoView();
 
   Vec2F mousePosition = Vec2F(selected->center) * m_context->interfaceScale();
   MouseMoveEvent moveEvent{{0.0f, 0.0f}, mousePosition, true};
@@ -638,10 +641,20 @@ void PaneManager::collectUiNavigationCandidates(Widget* widget, List<UiNavigatio
 
   bool selectableSelf = includeSelf && uiNavigationCandidateWidget(widget);
 
+  // StarPad: widgets inside a scroll area may be scrolled out of view (or out
+  // of the window); they stay reachable and the area scrolls to them.
+  bool insideScroll = false;
+  for (Widget* p = widget->parent(); p; p = p->parent()) {
+    if (is<ScrollArea>(p)) {
+      insideScroll = true;
+      break;
+    }
+  }
+
   if (selectableSelf) {
     RectI rect = widget->screenBoundRect();
     if (!rect.isEmpty() && rect.size()[0] >= 3 && rect.size()[1] >= 3) {
-      RectI visibleRect = rect.limited(RectI::withSize(Vec2I(), windowSize()));
+      RectI visibleRect = insideScroll ? rect : rect.limited(RectI::withSize(Vec2I(), windowSize()));
       if (!visibleRect.isEmpty()) {
         candidates.append({widget, visibleRect, visibleRect.center(), selectableAncestorRect});
         selectableAncestorRect = visibleRect;
@@ -649,8 +662,48 @@ void PaneManager::collectUiNavigationCandidates(Widget* widget, List<UiNavigatio
     }
   }
 
+  // A list row is selected as a whole (clicking it selects the entry); its
+  // icons and labels are not separate stops.
+  if (selectableSelf && widget->parent() && is<ListWidget>(widget->parent()))
+    return;
+
   for (size_t i = 0; i < widget->numChildren(); ++i)
     collectUiNavigationCandidates(widget->getChildNum(i).get(), candidates, true, selectableAncestorRect);
+}
+
+void PaneManager::scrollUiSelectionIntoView() {
+  if (!m_hasUiSelection || !m_uiSelectionWidget)
+    return;
+  Widget* selected = const_cast<Widget*>(m_uiSelectionWidget);
+  RectI selRect = selected->screenBoundRect();
+  for (Widget* p = selected->parent(); p; p = p->parent()) {
+    auto area = as<ScrollArea>(p);
+    if (!area)
+      continue;
+    RectI areaRect = RectI::withSize(area->screenPosition(), area->areaSize());
+    int dy = 0;
+    if (selRect.yMin() < areaRect.yMin())
+      dy = -(areaRect.yMin() - selRect.yMin());
+    else if (selRect.yMax() > areaRect.yMax())
+      dy = selRect.yMax() - areaRect.yMax();
+    int dx = 0;
+    if (area->horizontalScroll()) {
+      if (selRect.xMin() < areaRect.xMin())
+        dx = selRect.xMin() - areaRect.xMin();
+      else if (selRect.xMax() > areaRect.xMax())
+        dx = selRect.xMax() - areaRect.xMax();
+    }
+    if (dx != 0 || dy != 0) {
+      Vec2I before = area->scrollOffset();
+      area->scrollAreaBy(Vec2I(dx, dy));
+      // Clamp now; child drawing offsets only refresh on the next render, so
+      // move the selection rect by the scroll actually applied.
+      area->update(0.0f);
+      Vec2I applied = area->scrollOffset() - before;
+      selRect.translate(-applied);
+      m_uiSelectionRect = selRect;
+    }
+  }
 }
 
 bool PaneManager::uiNavigationCandidateWidget(Widget* widget) const {
@@ -661,6 +714,9 @@ bool PaneManager::uiNavigationCandidateWidget(Widget* widget) const {
   // StarPad: an item grid is a container; its individual slots are the
   // navigation targets, so the gamepad can move slot to slot.
   if (is<ItemGridWidget>(widget))
+    return false;
+  // Containers: their rows / contents are the navigation targets.
+  if (is<ScrollArea>(widget) || is<ListWidget>(widget))
     return false;
   return true;
 }

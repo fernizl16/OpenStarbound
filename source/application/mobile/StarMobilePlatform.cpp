@@ -1403,6 +1403,8 @@ private:
       {launcherText("touchActionChoice.actionBar3", "Action Bar 3"), keyAction(Key::Three)},
       {launcherText("touchActionChoice.actionBar4", "Action Bar 4"), keyAction(Key::Four)},
       {launcherText("touchActionChoice.actionBar5", "Action Bar 5"), keyAction(Key::Five)},
+      {launcherText("touchActionChoice.buildSizeUp", "Build Size + / PageUp"), keyAction(Key::PageUp)},
+      {launcherText("touchActionChoice.buildSizeDown", "Build Size - / PageDown"), keyAction(Key::PageDown)},
       {launcherText("touchActionChoice.scrollUp", "Scroll Up"), wheelAction(true)},
       {launcherText("touchActionChoice.scrollDown", "Scroll Down"), wheelAction(false)},
       {launcherText("touchActionChoice.gyroToggle", "Gyro Toggle"), gyroToggleAction()},

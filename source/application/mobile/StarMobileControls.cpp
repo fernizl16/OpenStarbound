@@ -2175,6 +2175,18 @@ private:
     ActiveButton active{binding->action, binding->pressMode};
     m_activeButtons[owner] = active;
 
+    // StarPad: in gameplay (no window open) D-pad up/down grow/shrink the
+    // building area of blocks, walls and the matter manipulator, while they
+    // keep moving the selection inside menus.
+    if (!GamepadUiContext::menuActive() && binding->action.kind == MobileTouchActionKind::UiNavigation
+        && (binding->action.uiNavigationDirection == UiNavigationDirection::Up
+            || binding->action.uiNavigationDirection == UiNavigationDirection::Down)) {
+      MobileTouchAction buildSize = keyAction(binding->action.uiNavigationDirection == UiNavigationDirection::Up ? Key::PageUp : Key::PageDown);
+      m_activeButtons[owner] = ActiveButton{buildSize, MobileTouchPressMode::SinglePress};
+      startPulsedAction(buildSize, owner);
+      return;
+    }
+
     if (binding->action.kind == MobileTouchActionKind::GamepadAimModeToggle) {
       startPulsedAction(binding->action, owner);
       return;
@@ -2308,6 +2320,11 @@ private:
 
     Vec2F aim{stickValue[0], stickValue[1]};
     if (stick->preciseAim) {
+      // StarPad: progressive response, slow and precise near the centre and
+      // full speed at full deflection.
+      float mag = aim.magnitude();
+      if (mag > 0.0001f)
+        aim *= std::pow(std::min(mag, 1.0f), 0.8f);
       float shortSide = std::max(1.0f, std::min(canvas[0], canvas[1]));
       float speed = shortSide * 1.35f * std::clamp(stick->sensitivity, 0.10f, 5.0f);
       m_cursorPosition += aim * speed * dt;

@@ -82,6 +82,7 @@ public:
   void disable();
   void enable();
   void setEnabled(bool enabled);
+  bool isEnabled() const { return !m_disabled; }
 
   void setInvisible(bool invisible);
 
