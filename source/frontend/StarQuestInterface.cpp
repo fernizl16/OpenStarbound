@@ -172,6 +172,24 @@ void QuestLogInterface::tick(float dt) {
   }
 }
 
+bool QuestLogInterface::uiTabAction(int direction) {
+  auto group = fetchChild<ButtonGroupWidget>("filter");
+  if (!group || group->buttonCount() < 2)
+    return false;
+  List<int> ids;
+  for (auto button : group->buttons())
+    ids.append(group->id(button));
+  int current = group->checkedId();
+  int index = 0;
+  for (size_t i = 0; i < ids.size(); ++i) {
+    if (ids[i] == current)
+      index = (int)i;
+  }
+  group->select(ids[pmod(index + direction, (int)ids.size())]);
+  fetchData();
+  return true;
+}
+
 PanePtr QuestLogInterface::createTooltip(Vec2I const& screenPosition) {
   ItemPtr item;
   if (auto child = getChildAt(screenPosition)) {

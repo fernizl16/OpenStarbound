@@ -21,6 +21,9 @@ public:
   virtual void tick(float dt) override;
   virtual PanePtr createTooltip(Vec2I const& screenPosition) override;
 
+  // StarPad: LB/RB switch between In progress and Completed.
+  bool uiTabAction(int direction) override;
+
   void fetchData();
 
   void pollDialog(PaneManager* paneManager);
