@@ -24,6 +24,10 @@ public:
   void dismissed() override;
   PanePtr createTooltip(Vec2I const& screenPosition) override;
 
+  // StarPad gamepad hooks: LB/RB switch Buy/Sell, Y buys or sells.
+  bool uiTabAction(int direction) override;
+  bool uiQuickAction(Widget* selected) override;
+
   EntityId sourceEntityId() const;
 
   ItemPtr addItems(ItemPtr const& items);

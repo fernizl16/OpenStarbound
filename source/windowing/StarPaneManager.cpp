@@ -513,11 +513,30 @@ void PaneManager::update(float dt) {
 bool PaneManager::handleUiNavigation(UiNavigationDirection direction) {
   clearUiNavigationTextInputFocus();
 
+  // StarPad: while a window is open, navigate the windows only. HUD panes
+  // (quest tracker, team bar, ...) are skipped, except the HUD pane that
+  // already holds the selection (e.g. the action bar while placing an item).
+  bool windowOpen = false;
+  for (auto const& layerPair : m_displayedPanes) {
+    if (layerPair.first != PaneLayer::Window && layerPair.first != PaneLayer::ModalWindow)
+      continue;
+    for (auto const& panePair : layerPair.second) {
+      if (panePair.first != m_activeTooltip && panePair.first->active() && !panePair.first->isDismissed())
+        windowOpen = true;
+    }
+  }
+  Pane* selectionPane = nullptr;
+  if (m_hasUiSelection && m_uiSelectionWidget)
+    selectionPane = const_cast<Widget*>(m_uiSelectionWidget)->window();
+
   List<UiNavigationCandidate> candidates;
   bool foundModal = false;
   for (auto const& layerPair : m_displayedPanes) {
     for (auto const& panePair : layerPair.second) {
       if (panePair.first == m_activeTooltip || !panePair.first->active())
+        continue;
+      if (windowOpen && layerPair.first != PaneLayer::Window && layerPair.first != PaneLayer::ModalWindow
+          && panePair.first.get() != selectionPane)
         continue;
 
       collectUiNavigationCandidates(panePair.first.get(), candidates, false);

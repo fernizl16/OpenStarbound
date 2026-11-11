@@ -392,4 +392,26 @@ void MerchantPane::countTextChanged() {
   }
 }
 
+bool MerchantPane::uiTabAction(int direction) {
+  if (!m_tabSet || m_tabSet->tabCount() < 2)
+    return false;
+  m_tabSet->tabSelect((size_t)pmod((int)m_tabSet->selectedTab() + direction, (int)m_tabSet->tabCount()));
+  return true;
+}
+
+bool MerchantPane::uiQuickAction(Widget* selected) {
+  // Y on an inventory item (outside this window) keeps the stock behaviour:
+  // shift-click moves it into the sell slots.
+  if (selected && selected->window() != this)
+    return false;
+  if (m_tabSet && m_tabSet->selectedTab() == 0) {
+    if (m_buyButton && m_buyButton->isEnabled())
+      buy();
+  } else {
+    if (m_sellButton && m_sellButton->isEnabled())
+      sell();
+  }
+  return true;
+}
+
 }
