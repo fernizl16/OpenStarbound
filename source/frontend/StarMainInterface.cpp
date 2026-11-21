@@ -2117,10 +2117,11 @@ List<MainInterface::ActionWheelItem> MainInterface::activeActionWheelItems() con
 
 void MainInterface::updateActionWheelSelection(Vec2F const& direction) {
   m_actionWheelDirection = direction;
-  if (direction.magnitudeSquared() < 0.25f) {
-    m_actionWheelSelection = {};
+  // StarPad: with the stick back in the centre the last option pointed at
+  // stays selected, so releasing the stick first and the shoulder button
+  // afterwards still picks it. B cancels the wheel instead.
+  if (direction.magnitudeSquared() < 0.25f)
     return;
-  }
 
   auto items = activeActionWheelItems();
   if (items.empty())

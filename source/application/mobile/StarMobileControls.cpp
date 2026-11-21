@@ -1993,8 +1993,18 @@ public:
       clearStickMovement("gamepad:rightStick");
       emitEvent(ActionWheelEvent{false, false, false, actionWheelDirection(), m_actionWheelType});
     } else {
-      updateStickMovement("gamepad:leftStick", m_config.leftStick, m_leftStick);
-      updateStickMovement("gamepad:rightStick", m_config.rightStick, m_rightStick);
+      // StarPad: after a wheel closes, the sticks do not move the character
+      // until they are back in the centre, so letting go of the wheel does
+      // not make you walk.
+      if (m_holdSticksAfterWheel && m_leftStick.magnitude() < 0.3f && m_rightStick.magnitude() < 0.3f)
+        m_holdSticksAfterWheel = false;
+      if (m_holdSticksAfterWheel) {
+        clearStickMovement("gamepad:leftStick");
+        clearStickMovement("gamepad:rightStick");
+      } else {
+        updateStickMovement("gamepad:leftStick", m_config.leftStick, m_leftStick);
+        updateStickMovement("gamepad:rightStick", m_config.rightStick, m_rightStick);
+      }
       updateStickAim();
     }
     releaseExpiredPulsedActions();
@@ -2157,6 +2167,12 @@ private:
 
     // StarPad: while a window or menu is open, face buttons and bumpers act on
     // the selected UI element instead of running their gameplay binding.
+    // StarPad: B closes an open action / item wheel without choosing anything.
+    if (m_actionWheelActive && button == ControllerButton::B) {
+      closeActionWheel(false);
+      return;
+    }
+
     if (GamepadUiContext::menuActive()) {
       if (auto uiAction = menuActionForButton(button)) {
         String owner = buttonOwner(button);
@@ -2518,6 +2534,7 @@ private:
     m_actionWheelActive = false;
     m_actionWheelOwner = {};
     m_actionWheelType = ActionWheelType::Actions;
+    m_holdSticksAfterWheel = true;
   }
 
   void emitEvent(InputEvent const& event) {
@@ -2535,6 +2552,7 @@ private:
   StringSet m_heldButtons;
   StringSet m_toggledButtons;
   bool m_actionWheelActive = false;
+  bool m_holdSticksAfterWheel = false;
   String m_actionWheelOwner;
   ActionWheelType m_actionWheelType = ActionWheelType::Actions;
   StringMap<ActiveButton> m_activeButtons;
