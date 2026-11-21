@@ -1,0 +1,40 @@
+name: StarPad signing key
+
+# Keeps the StarPad APK signing key in this repository's private Actions
+# cache on the main branch. Caches expire after 7 days without use, so this
+# runs every 3 days to keep it alive. Builds on other branches can read
+# main's cache, so every StarPad APK is signed with the same key and
+# installs over the previous one without losing data.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/starpad-signing-key.yml
+  schedule:
+    - cron: "17 4 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  keep-key:
+    name: Keep signing key
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore or save StarPad signing key
+        id: key
+        uses: actions/cache@v4
+        with:
+          path: ~/.starpad-signing/starpad.keystore
+          key: starpad-signing-key-v2
+
+      - name: Create StarPad signing key
+        if: steps.key.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "${HOME}/.starpad-signing"
+          keytool -genkeypair -keystore "${HOME}/.starpad-signing/starpad.keystore" \
+            -storepass android -keypass android -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=StarPad"
