@@ -57,7 +57,9 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Enumeration;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
@@ -1087,6 +1089,70 @@ public final class MainActivity extends SDLActivity {
         }
     }
 
+    private static boolean unzipSaveArchiveRandomAccess(MainActivity activity, Uri zipUri, File tempRoot) {
+        if (activity == null || zipUri == null || tempRoot == null) {
+            return false;
+        }
+        File localZip = new File(activity.getCacheDir(), "save-import-" + System.currentTimeMillis() + ".zip");
+        try {
+            try (InputStream raw = activity.getContentResolver().openInputStream(zipUri);
+                 FileOutputStream out = new FileOutputStream(localZip, false)) {
+                if (raw == null) {
+                    return false;
+                }
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = raw.read(buffer)) > 0) {
+                    out.write(buffer, 0, read);
+                }
+            }
+            if (!tempRoot.exists() && !tempRoot.mkdirs()) {
+                return false;
+            }
+            String rootPath = tempRoot.getCanonicalPath();
+            boolean extractedAny = false;
+            try (ZipFile zip = new ZipFile(localZip)) {
+                byte[] buffer = new byte[64 * 1024];
+                Enumeration<? extends ZipEntry> entries = zip.entries();
+                while (entries.hasMoreElements()) {
+                    ZipEntry entry = entries.nextElement();
+                    String safePath = safeZipEntryPath(entry.getName());
+                    if (safePath == null) {
+                        return false;
+                    }
+                    File target = new File(tempRoot, safePath);
+                    String targetPath = target.getCanonicalPath();
+                    if (!targetPath.equals(rootPath) && !targetPath.startsWith(rootPath + File.separator)) {
+                        return false;
+                    }
+                    if (entry.isDirectory()) {
+                        if (!target.exists() && !target.mkdirs()) {
+                            return false;
+                        }
+                        continue;
+                    }
+                    File parent = target.getParentFile();
+                    if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                        return false;
+                    }
+                    try (InputStream in = zip.getInputStream(entry);
+                         FileOutputStream out = new FileOutputStream(target, false)) {
+                        int read;
+                        while ((read = in.read(buffer)) > 0) {
+                            out.write(buffer, 0, read);
+                        }
+                    }
+                    extractedAny = true;
+                }
+            }
+            return extractedAny;
+        } catch (Throwable t) {
+            return false;
+        } finally {
+            localZip.delete();
+        }
+    }
+
     private static boolean hasSavePayload(File directory) {
         return directory != null && directory.isDirectory()
             && (new File(directory, "player").isDirectory() || new File(directory, "universe").isDirectory());
@@ -1206,7 +1272,12 @@ public final class MainActivity extends SDLActivity {
         File tempRoot = new File(activity.getCacheDir(), "save-import-" + System.currentTimeMillis());
         try {
             if (!unzipSaveArchive(activity, zipUri, tempRoot)) {
-                return "Could not read the selected .zip (unsupported or corrupt archive).";
+                // StarPad: zips made by file managers often use data
+                // descriptors or zip64, which the streaming reader rejects.
+                // Retry with the random-access reader on a local copy.
+                deleteRecursively(tempRoot);
+                if (!unzipSaveArchiveRandomAccess(activity, zipUri, tempRoot))
+                    return "Could not read the selected .zip (unsupported or corrupt archive).";
             }
             // Depth 6 also covers zips made by file managers that store full
             // paths (…/Android/data/<pkg>/files/player/…), not just the flat
