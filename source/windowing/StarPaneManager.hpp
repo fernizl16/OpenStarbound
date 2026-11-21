@@ -9,6 +9,7 @@
 namespace Star {
 
 STAR_CLASS(PaneManager);
+STAR_CLASS(CanvasWidget);
 
 enum class PaneLayer {
   // A special class of window only meant to be used by PaneManager to display
@@ -118,6 +119,9 @@ private:
   bool handleUiAction(UiActionEvent const& action);
   void sendUiSelectionClick(MouseButton button, bool pressed);
   void scrollUiSelectionIntoView();
+  // StarPad: free cursor inside canvas widgets (maps, navigation console).
+  CanvasWidget* uiSelectedCanvas() const;
+  void moveUiCanvasMouse(Vec2F const& screenPosition);
   void collectUiNavigationCandidates(Widget* widget, List<UiNavigationCandidate>& candidates, bool includeSelf, Maybe<RectI> selectableAncestorRect = {}) const;
   bool uiNavigationCandidateWidget(Widget* widget) const;
   Maybe<UiNavigationCandidate> chooseUiNavigationCandidate(List<UiNavigationCandidate> const& candidates, UiNavigationDirection direction) const;
@@ -174,6 +178,10 @@ private:
   Widget const* m_uiSelectionWidget = nullptr;
   RectI m_uiSelectionRect;
   Maybe<RectI> m_uiSelectionAncestorRect;
+  Maybe<Vec2F> m_canvasCursor;
+  int64_t m_canvasCursorLastMoveMs = 0;
+  int m_canvasCursorRun = 0;
+  Maybe<UiNavigationDirection> m_canvasCursorLastDirection;
 };
 
 }

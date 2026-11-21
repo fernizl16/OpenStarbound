@@ -11,6 +11,8 @@
 #include "StarItemGridWidget.hpp"
 #include "StarScrollArea.hpp"
 #include "StarListWidget.hpp"
+#include "StarCanvasWidget.hpp"
+#include "StarTime.hpp"
 
 #include <limits>
 #include <typeinfo>
@@ -513,6 +515,42 @@ void PaneManager::update(float dt) {
 bool PaneManager::handleUiNavigation(UiNavigationDirection direction) {
   clearUiNavigationTextInputFocus();
 
+  // StarPad: inside a canvas (star map, navigation console...) the D-pad moves
+  // a free cursor; it speeds up while held. Leaving the canvas edge continues
+  // with normal navigation.
+  if (auto canvas = uiSelectedCanvas()) {
+    float scale = m_context->interfaceScale();
+    RectF bound = RectF(canvas->screenBoundRect());
+    RectF area(bound.min() * scale, bound.max() * scale);
+    if (!m_canvasCursor)
+      m_canvasCursor = area.center();
+    int64_t now = Time::monotonicMilliseconds();
+    if (m_canvasCursorLastDirection == direction && now - m_canvasCursorLastMoveMs < 250)
+      ++m_canvasCursorRun;
+    else
+      m_canvasCursorRun = 0;
+    m_canvasCursorLastDirection = direction;
+    m_canvasCursorLastMoveMs = now;
+
+    float step = scale * std::min(2.0f + m_canvasCursorRun * 0.75f, 9.0f);
+    Vec2F delta;
+    if (direction == UiNavigationDirection::Up)
+      delta = Vec2F(0, step);
+    else if (direction == UiNavigationDirection::Down)
+      delta = Vec2F(0, -step);
+    else if (direction == UiNavigationDirection::Left)
+      delta = Vec2F(-step, 0);
+    else
+      delta = Vec2F(step, 0);
+    Vec2F next = *m_canvasCursor + delta;
+    if (area.contains(next)) {
+      m_canvasCursor = next;
+      moveUiCanvasMouse(next);
+      return true;
+    }
+    m_canvasCursor = {};
+  }
+
   // StarPad: while a window is open, navigate the windows only. HUD panes
   // (quest tracker, team bar, ...) are skipped, except the HUD pane that
   // already holds the selection (e.g. the action bar while placing an item).
@@ -561,6 +599,9 @@ bool PaneManager::handleUiNavigation(UiNavigationDirection direction) {
   scrollUiSelectionIntoView();
 
   Vec2F mousePosition = Vec2F(selected->center) * m_context->interfaceScale();
+  m_canvasCursor = {};
+  if (is<CanvasWidget>(selected->widget))
+    m_canvasCursor = mousePosition;
   MouseMoveEvent moveEvent{{0.0f, 0.0f}, mousePosition, true};
   m_sendingUiNavigationMouseMove = true;
   sendInputEvent(moveEvent);
@@ -644,6 +685,19 @@ bool PaneManager::handleUiAction(UiActionEvent const& action) {
 void PaneManager::sendUiSelectionClick(MouseButton button, bool pressed) {
   if (!m_hasUiSelection)
     return;
+  if (uiSelectedCanvas() && m_canvasCursor) {
+    // Send the click where the canvas cursor is, bypassing the redirect of
+    // mouse buttons to the selection centre.
+    moveUiCanvasMouse(*m_canvasCursor);
+    bool wasSending = m_sendingUiNavigationMouseButton;
+    m_sendingUiNavigationMouseButton = true;
+    if (pressed)
+      sendInputEvent(MouseButtonDownEvent{button, *m_canvasCursor});
+    else
+      sendInputEvent(MouseButtonUpEvent{button, *m_canvasCursor});
+    m_sendingUiNavigationMouseButton = wasSending;
+    return;
+  }
   Vec2F position = Vec2F(uiNavigationSelectedCenter()) * m_context->interfaceScale();
   if (pressed)
     sendInputEvent(MouseButtonDownEvent{button, position});
@@ -673,8 +727,23 @@ bool PaneManager::setUiSelection(Widget* widget) {
   m_uiSelectionWidget = widget;
   m_uiSelectionRect = rect;
   m_uiSelectionAncestorRect = ancestor;
+  m_canvasCursor = {};
   scrollUiSelectionIntoView();
   return true;
+}
+
+CanvasWidget* PaneManager::uiSelectedCanvas() const {
+  if (!m_hasUiSelection || !m_uiSelectionWidget)
+    return nullptr;
+  return as<CanvasWidget>(const_cast<Widget*>(m_uiSelectionWidget));
+}
+
+void PaneManager::moveUiCanvasMouse(Vec2F const& screenPosition) {
+  MouseMoveEvent moveEvent{{0.0f, 0.0f}, screenPosition, true};
+  bool wasSending = m_sendingUiNavigationMouseMove;
+  m_sendingUiNavigationMouseMove = true;
+  sendInputEvent(moveEvent);
+  m_sendingUiNavigationMouseMove = wasSending;
 }
 
 Widget* PaneManager::uiSelectionWidget() const {
@@ -684,6 +753,8 @@ Widget* PaneManager::uiSelectionWidget() const {
 Maybe<Vec2F> PaneManager::uiSelectionScreenPosition() const {
   if (!m_hasUiSelection)
     return {};
+  if (uiSelectedCanvas() && m_canvasCursor)
+    return m_canvasCursor;
   return Vec2F(uiNavigationSelectedCenter()) * m_context->interfaceScale();
 }
 
