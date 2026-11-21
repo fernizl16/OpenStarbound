@@ -60,23 +60,15 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      # StarPad signing key: generated on the first run and kept in this
-      # repository's private Actions cache, so later APKs install over the
-      # previous one without losing data. No key is stored in the repo.
+      # StarPad signing key: created and kept alive on the main branch by the
+      # "StarPad signing key" workflow (every 3 days), so it never expires and
+      # every APK installs over the previous one. Restore only.
       - name: Restore StarPad signing key
-        id: signing-key
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.starpad-signing/starpad.keystore
-          key: starpad-signing-key-v1
-
-      - name: Create StarPad signing key
-        if: steps.signing-key.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "${HOME}/.starpad-signing"
-          keytool -genkeypair -keystore "${HOME}/.starpad-signing/starpad.keystore" \
-            -storepass android -keypass android -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=StarPad"
+          key: starpad-signing-key-v2
+          fail-on-cache-miss: true
 
       - name: Use StarPad signing key
         run: echo "STAR_SIGNING_KEYSTORE=${HOME}/.starpad-signing/starpad.keystore" >> "${GITHUB_ENV}"
