@@ -96,6 +96,10 @@ public:
   // Render things e.g. quest indicators that should be drawn in the world
   // behind interface e.g. chat bubbles
   void renderInWorldElements();
+  // StarPad: arrows at the screen edge pointing at hostile enemies that are
+  // off screen (useful when playing zoomed in).
+  void updateOffscreenThreats(float dt);
+  void renderOffscreenThreats();
   void render();
 
   // Sim-overlap support (Switch): true when the whole HUD can render this
@@ -250,6 +254,8 @@ private:
 
   ActionBarPtr m_actionBar;
   Vec2F m_cursorScreenPos{};
+  List<pair<Vec2F, float>> m_offscreenThreats; // world position, health fraction
+  float m_offscreenThreatTimer = 0.0f;
 
   // Frame counter for the every-Nth-frame special-damage-bar entity scan.
   uint64_t m_specialBarScanCounter = 0;

@@ -608,6 +608,8 @@ void MainInterface::preUpdate(float) {
 void MainInterface::update(float dt) {
   m_paneManager.update(dt);
 
+  updateOffscreenThreats(dt);
+
   // StarPad: with a gamepad UI selection active in a window, the held item
   // (and tooltips) follow the selection instead of the last mouse position.
   if (windowsOpen()) {
@@ -978,6 +980,88 @@ void MainInterface::renderInWorldElements() {
   m_questIndicatorPainter->render();
   m_nameplatePainter->render();
   m_chatBubbleManager->render();
+  renderOffscreenThreats();
+}
+
+void MainInterface::updateOffscreenThreats(float dt) {
+  m_offscreenThreatTimer -= dt;
+  if (m_offscreenThreatTimer > 0.0f)
+    return;
+  m_offscreenThreatTimer = 0.1f;
+  m_offscreenThreats.clear();
+
+  auto world = m_client->worldClient();
+  auto player = m_client->mainPlayer();
+  if (!world || !player || !world->inWorld() || player->isDead())
+    return;
+
+  float const range = 60.0f; // tiles
+  Vec2F origin = player->position();
+  RectF area = RectF::withCenter(origin, Vec2F(range * 2, range * 2));
+  auto team = player->getTeam();
+
+  for (auto const& monster : world->query<Monster>(area)) {
+    if (monster->health() <= 0.0f || !monster->aggressive() || !team.canDamage(monster->getTeam(), false))
+      continue;
+    float maxHealth = monster->maxHealth();
+    m_offscreenThreats.append({monster->position(), maxHealth > 0 ? monster->health() / maxHealth : 1.0f});
+  }
+  for (auto const& npc : world->query<Npc>(area)) {
+    if (npc->health() <= 0.0f || !npc->aggressive() || !team.canDamage(npc->getTeam(), false))
+      continue;
+    float maxHealth = npc->maxHealth();
+    m_offscreenThreats.append({npc->position(), maxHealth > 0 ? npc->health() / maxHealth : 1.0f});
+  }
+}
+
+void MainInterface::renderOffscreenThreats() {
+  if (m_offscreenThreats.empty())
+    return;
+  auto world = m_client->worldClient();
+  auto player = m_client->mainPlayer();
+  if (!world || !player)
+    return;
+
+  auto const& camera = m_worldPainter->camera();
+  Vec2F screen = Vec2F(camera.screenSize());
+  float scale = interfaceScale();
+  float margin = 18.0f * scale;
+  RectF visible(Vec2F(), screen);
+  RectF edge(Vec2F(margin, margin), screen - Vec2F(margin, margin));
+  Vec2F center = screen / 2.0f;
+  Vec2F origin = player->position();
+
+  List<tuple<Vec2F, Vec2F, Vec2F>> closeArrows, farArrows;
+  for (auto const& threat : m_offscreenThreats) {
+    Vec2F worldPos = origin + world->geometry().diff(threat.first, origin);
+    Vec2F screenPos = camera.worldToScreen(worldPos);
+    if (visible.contains(screenPos))
+      continue;
+
+    Vec2F dir = screenPos - center;
+    if (dir.magnitudeSquared() < 1.0f)
+      continue;
+    dir = dir.normalized();
+    // Scale the direction so the tip lands on the inset screen edge.
+    float tx = dir[0] != 0 ? ((dir[0] > 0 ? edge.xMax() : edge.xMin()) - center[0]) / dir[0] : 1e9f;
+    float ty = dir[1] != 0 ? ((dir[1] > 0 ? edge.yMax() : edge.yMin()) - center[1]) / dir[1] : 1e9f;
+    Vec2F tip = center + dir * std::min(tx, ty);
+
+    float distance = world->geometry().diff(threat.first, origin).magnitude();
+    float size = (distance < 25.0f ? 11.0f : 8.0f) * scale;
+    Vec2F side(-dir[1], dir[0]);
+    Vec2F base = tip - dir * size * 1.6f;
+    auto tri = make_tuple(tip, base + side * size, base - side * size);
+    if (distance < 25.0f)
+      closeArrows.append(tri);
+    else
+      farArrows.append(tri);
+  }
+
+  if (!farArrows.empty())
+    m_guiContext->drawTriangles(farArrows, Vec4B(230, 60, 50, 140));
+  if (!closeArrows.empty())
+    m_guiContext->drawTriangles(closeArrows, Vec4B(255, 50, 40, 235));
 }
 
 bool MainInterface::hudSafeToReplay() const {
